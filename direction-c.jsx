@@ -639,14 +639,14 @@ function DC_Homepage() {
               <div className="label"><span className="stars" aria-label="Five stars">★★★★★</span><span>Client word</span></div>
               <blockquote>
                 <p className="display">
-                  "Local Motion handled the snow removal and painted the driveway at the tire store I managed in Sheridan. Easy to work with, and the work was done right."
+                  "Local Motion was always there for my property needs: clearing snow, striping the parking lot, maintaining the grounds. They were easy to work with and the work was always done right."
                 </p>
               </blockquote>
               <figcaption className="who">
                 <div className="avatar" aria-hidden="true">TH</div>
                 <div>
                   <b>Travis Haley</b>
-                  <span>Former General Manager · Tire store, Sheridan, CO</span>
+                  <span>Sheridan, CO</span>
                 </div>
               </figcaption>
             </figure>
