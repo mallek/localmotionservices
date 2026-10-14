@@ -51,6 +51,8 @@ const LMS_INFO = {
   phoneDisplay: '303 · 573 · 7677',
   phoneTel: 'tel:+13035737677',
   email: 'localmotionone@msn.com',
+  // Web3Forms access key (public by design). Empty = fall back to a mailto: link.
+  formKey: '',
   addr1: '9745 E Hampden Ave, Suite 402',
   addr2: 'Denver, CO 80231',
 };

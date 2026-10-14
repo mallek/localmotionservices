@@ -377,7 +377,7 @@ function DC_Homepage() {
   const [filter, setFilter] = useStateC('all');
   const [menuOpen, setMenuOpen] = useStateC(false);
   const [service, setService] = useStateC('');
-  const [sent, setSent] = useStateC(false);
+  const [status, setStatus] = useStateC('idle'); // idle | sending | sent | mailto | error
   const menuBtnRef = useRefC(null);
   const visible = filter === 'all' ? DC_SERVICES : DC_SERVICES.filter(s => s.group === filter);
   const count = (g) => DC_SERVICES.filter(s => s.group === g).length;
@@ -396,22 +396,56 @@ function DC_Homepage() {
     };
   }, [menuOpen]);
 
-  // No backend on GitHub Pages: the form opens the visitor's email app with the details filled in.
-  const onSubmit = (e) => {
+  // GitHub Pages has no backend. With a Web3Forms key (DC_INFO.formKey) the form posts to their API,
+  // which emails the lead. With no key it falls back to opening the visitor's email app.
+  const onSubmit = async (e) => {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const f = new FormData(form);
     const svc = f.get('service') || 'General';
-    const body = [
-      `Name: ${f.get('name')}`,
-      f.get('company') ? `Company: ${f.get('company')}` : null,
-      `Email: ${f.get('email')}`,
-      `Phone: ${f.get('phone')}`,
-      `Service: ${svc}`,
-      '',
-      f.get('message'),
-    ].filter(l => l !== null).join('\n');
-    window.location.href = `mailto:${DC_INFO.email}?subject=${encodeURIComponent('Quote request: ' + svc)}&body=${encodeURIComponent(body)}`;
-    setSent(true);
+    if (f.get('botcheck')) { setStatus('sent'); return; } // honeypot: bots tick the hidden box
+    if (!DC_INFO.formKey) {
+      const body = [
+        `Name: ${f.get('name')}`,
+        f.get('company') ? `Company: ${f.get('company')}` : null,
+        `Email: ${f.get('email')}`,
+        `Phone: ${f.get('phone')}`,
+        `Service: ${svc}`,
+        '',
+        f.get('message'),
+      ].filter(l => l !== null).join('\n');
+      window.location.href = `mailto:${DC_INFO.email}?subject=${encodeURIComponent('Quote request: ' + svc)}&body=${encodeURIComponent(body)}`;
+      setStatus('mailto');
+      return;
+    }
+    setStatus('sending');
+    try {
+      const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          access_key: DC_INFO.formKey,
+          subject: `Quote request: ${svc}`,
+          from_name: 'Local Motion Services website',
+          name: f.get('name'),
+          company: f.get('company') || '',
+          email: f.get('email'),
+          phone: f.get('phone'),
+          service: svc,
+          message: f.get('message'),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        form.reset();
+        setService('');
+        setStatus('sent');
+      } else {
+        setStatus('error');
+      }
+    } catch (err) {
+      setStatus('error');
+    }
   };
 
   const CallLabel = () => (<><span className="call-num">{DC_INFO.phoneDisplay}</span><span className="call-word">Call</span></>);
@@ -716,11 +750,27 @@ function DC_Homepage() {
                   <label className="label" htmlFor="q-msg">What does the property need? *</label>
                   <textarea id="q-msg" name="message" className="field" rows={4} placeholder="Lot size, timeline, budget — anything that helps us scope it right." required></textarea>
                 </div>
-                <button type="submit" className="btn btn-red btn-lg submit">Send message <IcArrow size={14} /></button>
-                <p className="fine">Opens your email app with these details filled in. Rather talk? Call <a href={DC_INFO.phoneTel}>{DC_INFO.phoneDisplay}</a>.</p>
-                {sent && (
+                <input type="checkbox" name="botcheck" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ display: 'none' }} />
+                <button type="submit" className="btn btn-red btn-lg submit" disabled={status === 'sending'}>
+                  {status === 'sending' ? 'Sending...' : <>Send message <IcArrow size={14} /></>}
+                </button>
+                <p className="fine">
+                  {DC_INFO.formKey ? 'We will get back to you quickly. ' : 'Opens your email app with these details filled in. '}
+                  Rather talk? Call <a href={DC_INFO.phoneTel}>{DC_INFO.phoneDisplay}</a>.
+                </p>
+                {status === 'sent' && (
+                  <p className="sent" role="status">
+                    Thanks, we got your request and will get back to you quickly. For anything urgent, call <a href={DC_INFO.phoneTel} style={{ fontWeight: 600 }}>{DC_INFO.phoneDisplay}</a>.
+                  </p>
+                )}
+                {status === 'mailto' && (
                   <p className="sent" role="status">
                     Your email app should now be open with the message ready to send. If nothing opened, email us at <a href={`mailto:${DC_INFO.email}`} style={{ fontWeight: 600 }}>{DC_INFO.email}</a> or call {DC_INFO.phoneDisplay}.
+                  </p>
+                )}
+                {status === 'error' && (
+                  <p className="sent" role="alert">
+                    Sorry, that did not go through. Please call <a href={DC_INFO.phoneTel} style={{ fontWeight: 600 }}>{DC_INFO.phoneDisplay}</a> or email <a href={`mailto:${DC_INFO.email}`} style={{ fontWeight: 600 }}>{DC_INFO.email}</a>.
                   </p>
                 )}
               </form>
